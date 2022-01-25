@@ -858,6 +858,7 @@ ul {
 .date-panel.rounded {
   border-radius: 10px;
   overflow: hidden;
+  padding-bottom: 2px;
 }
 .closePicker{
   text-align: right;
