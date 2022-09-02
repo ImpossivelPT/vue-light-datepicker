@@ -4,6 +4,12 @@ import VueLightDatepicker from '@/vue-light-datepicker.vue';
 
 export default Vue.extend({
   name: 'ServeDev',
+  data() {
+    return {
+      myDate: [],
+      dateExternal: null,
+    }
+  },
   components: {
     VueLightDatepicker
   }
@@ -12,6 +18,7 @@ export default Vue.extend({
 
 <template>
   <div id="app">
-    <vue-light-datepicker roundCorners/>
+    <vue-light-datepicker v-model="myDate" language="en" :allowSelectSameDay="false" roundCorners range showFromTo="to" date="" />
+    <button @click="dateExternal='27/05/2022'">Set value extenally</button>
   </div>
 </template>

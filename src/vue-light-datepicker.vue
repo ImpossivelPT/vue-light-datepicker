@@ -23,6 +23,7 @@
       <!-- <div v-if="isValueEmpty" class="input" @click="togglePanel">Select {{range? 'dates':'date'}}</div> -->
       <input
         type="text"
+        :readonly="inputReadOnly"
         inputmode='none'
         v-if="isValueEmpty"
         :style="inputStyle"
@@ -33,6 +34,7 @@
       <!-- <div v-else class="input" @click="togglePanel" v-text="pickerOutput"></div> -->
       <input
         type="text"
+        :readonly="inputReadOnly"
         inputmode='none'
         v-else
         :style="inputStyle"
@@ -149,21 +151,11 @@
             <li
               v-for="(item, index) in dateList"
               :key="index"
-              :class="{
-                preMonth: item.previousMonth,
-                nextMonth: item.nextMonth,
-                invalid: validateDate(item),
-                firstItem: index % 7 === 0,
-                interval: rangeStart && index > tmpStartIndex && index < tmpEndIndex || range && isSelected('date', item),
-                start: rangeStart && index == tmpStartIndex && tmpEndIndex > index || range && !rangeStart && isFirstDaySelected(item),
-                end: rangeStart && index == tmpEndIndex && tmpStartIndex < index || range && !rangeStart && isLastDaySelected(item)
-              }"
+              :class="dateDayItemClasse(item, index)"
               :index="index"
               @click="selectDate(item, index)"
               @mouseover="overDate(item, index)"
             >
-                <!-- start: rangeStart && index == tmpStartIndex && tmpEndIndex > index,
-                end: rangeStart && index == tmpEndIndex && tmpStartIndex < index -->
               <div
                 class="message"
                 :class="{ selected: isSelected('date', item) }"
@@ -208,10 +200,7 @@ export default /*#__PURE__*/ {
       maxYear: Number,
       maxMonth: Number,
       maxDate: Number,
-      yearList: Array.from(
-        { length: 12 },
-        (value, index) => new Date().getFullYear() + index
-      ),
+      yearList: [],
       monthList: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
       weekList: [0, 1, 2, 3, 4, 5, 6],
       rangeStart: false,
@@ -233,6 +222,10 @@ export default /*#__PURE__*/ {
       type: Boolean,
       default: false,
     },
+    inputReadOnly: {
+      type: Boolean,
+      default: false,
+    },
     enableClear: {
       type: Boolean,
       default: true,
@@ -246,8 +239,9 @@ export default /*#__PURE__*/ {
       default: false,
     },
     showFromTo: {
-      type: Boolean,
-      default: true,
+      // Options: 'both', 'from', 'to'
+      type: String,
+      default: 'both',
     },
     showClosePicker: {
       type: Boolean,
@@ -280,6 +274,16 @@ export default /*#__PURE__*/ {
       type: String,
       default: '#000000'
     },
+    allowSelectSameDay: {
+      type: Boolean,
+      default: true,
+    }
+  },
+  beforeMount() {
+    // set yearList
+    for (let index = 0; index < 12; index++) { 
+      this.yearList.push(new Date().getFullYear() + index)
+    }
   },
   methods: {
     togglePanel() {
@@ -319,10 +323,8 @@ export default /*#__PURE__*/ {
           item.previousMonth && month--;
           item.nextMonth && month++;
           return (
-            new Date(this.tmpYear, month, item.value).getTime() >
-              new Date(this.tmpStartYear, this.tmpStartMonth, this.tmpStartDate).getTime() &&
-            new Date(this.tmpYear, month, item.value).getTime() <
-              new Date(this.tmpEndYear, this.tmpEndMonth, this.tmpEndDate).getTime()
+            new Date(this.tmpYear, month, item.value).getTime() > new Date(this.tmpStartYear, this.tmpStartMonth, this.tmpStartDate).getTime() &&
+            new Date(this.tmpYear, month, item.value).getTime() < new Date(this.tmpEndYear, this.tmpEndMonth, this.tmpEndDate).getTime() 
           );
       }
     },
@@ -383,6 +385,9 @@ export default /*#__PURE__*/ {
       this.panelType = "date";
     },
     selectDate(date, index) {
+      console.log('selectDate', date, index)
+      
+
       setTimeout(() => {
         if (this.validateDate(date)) return;
         if (date.previousMonth) {
@@ -404,6 +409,7 @@ export default /*#__PURE__*/ {
             this.tmpMonth += 1;
           }
         }
+        
         if (!this.range) {
           this.year = this.tmpYear;
           this.month = this.tmpMonth;
@@ -414,6 +420,7 @@ export default /*#__PURE__*/ {
           this.$emit("input", value);
           this.panelState = false;
         } else if (this.range && !this.rangeStart) {
+          this.updateTmpValues([]);
           this.tmpEndYear = this.tmpStartYear = this.tmpYear;
           this.tmpEndMonth = this.tmpStartMonth = this.tmpMonth;
           this.tmpEndDate = this.tmpStartDate = date.value;
@@ -421,6 +428,12 @@ export default /*#__PURE__*/ {
 
           this.rangeStart = true;
         } else if (this.range && this.rangeStart) {
+          if(this.allowSelectSameDay == false && date.value === this.tmpStartDate && this.tmpMonth === this.tmpStartMonth) {
+            console.log('Selecting the same day is not allowed!');
+            return false;
+          }
+          // console.log(this.tmpD, this.tmpStartDate, this.tmpMonth, this.tmpStartMonth, date.value)
+          // debugger
           this.tmpEndYear = this.tmpYear;
           this.tmpEndMonth = this.tmpMonth;
           this.tmpEndDate = date.value;
@@ -464,6 +477,12 @@ export default /*#__PURE__*/ {
           this.rangeStart = false;
           this.panelState = false;
         }
+
+        // Allow or not select same day on rage
+        // if(this.range === true && this.rangeStart === true && this.allowSelectSameDay === true && this.tmpStartDate === this.tmpEndDate && this.tmpStartMonth === this.tmpEndMonth) {
+        //   console.log('You are selecting the same date')
+        // }
+        // debugger
       }, 0);
     },
     overDate(date, index){
@@ -513,7 +532,7 @@ export default /*#__PURE__*/ {
       this.rangeStart = false;
     },
     clear() {
-      this.$emit("input", this.range ? ["", ""] : "");
+      this.$emit("input", this.range ? [] : "");
     },
     closeIcon(color) {
       return `<g
@@ -522,6 +541,46 @@ export default /*#__PURE__*/ {
         <path d="m 1395,12634 c -85,-19 -167,-51 -243,-95 -69,-41 -639,-599 -707,-694 -101,-141 -140,-263 -140,-440 0,-169 36,-293 125,-427 29,-43 705,-726 2149,-2170 L 4985,6400 2574,3988 C 1218,2630 450,1855 427,1819 339,1682 306,1570 306,1400 c -1,-181 37,-302 139,-445 68,-95 488,-503 557,-544 273,-159 604,-143 853,42 22,17 986,976 2143,2131 L 6400,4985 8803,2584 C 9959,1429 10923,470 10945,453 c 69,-51 130,-82 224,-113 208,-70 431,-44 629,71 69,41 489,449 557,544 101,141 140,263 140,440 0,166 -36,290 -121,422 -25,39 -746,767 -2148,2171 l -2411,2412 2407,2408 c 2207,2208 2162,2161 2219,2303 75,187 77,392 4,572 -53,132 226,-143 -315,400 -289,291 -252,248 -285,272 -141,101 -263,140 -440,140 -166,0 -289,-35 -420,-120 -41,-26 -724,-702 -2172,-2149 L 6550,7965 4138,10376 c -1454,1452 -2132,2123 -2173,2150 -64,41 -149,78 -230,101 -79,22 -258,26 -340,7 z" />
       </g>`
     },
+    updateTmpValues(value){
+      if (Array.isArray(value) && value.length === 0) {
+        this.tmpStartYear = null;
+        this.tmpStartMonth = null;
+        this.tmpStartDate = null;
+
+        this.tmpEndYear = null;
+        this.tmpEndMonth = null;
+        this.tmpEndDate = null;
+        this.tmpEndIndex = null;
+      } else if(value.length === 2 && value[0] !== null && value[1] !== null){
+        let startDate = new Date(value[0])
+        let endDate = new Date(value[1])
+           
+        this.tmpStartYear = startDate.getFullYear();
+        this.tmpStartMonth = startDate.getMonth();
+        this.tmpStartDate = startDate.getDate();
+
+        this.tmpEndYear = endDate.getFullYear();
+        this.tmpEndMonth = endDate.getMonth();
+        this.tmpEndDate = endDate.getDate();
+      }
+    },
+    dateDayItemClasse(item, index) {
+      return {
+        preMonth: item.previousMonth,
+        nextMonth: item.nextMonth,
+        invalid: this.validateDate(item),
+        firstItem: index % 7 === 0,
+        interval: this.rangeStart && index > this.tmpStartIndex && index < this.tmpEndIndex && this.tmpEndIndex || 
+          this.rangeStart && index < this.tmpStartIndex && index > this.tmpEndIndex && this.tmpEndIndex || 
+          this.range && this.isSelected('date', item),
+        start: this.rangeStart && index == this.tmpStartIndex && this.tmpEndIndex > index  && this.tmpEndIndex || 
+          this.range && !this.rangeStart && this.isFirstDaySelected(item) ||
+          this.rangeStart && index == this.tmpEndIndex && this.tmpStartIndex > index && this.tmpEndIndex ,
+        end: this.rangeStart && index == this.tmpEndIndex && this.tmpStartIndex < index  && this.tmpEndIndex || 
+          this.range && !this.rangeStart && this.isLastDaySelected(item) ||
+          this.rangeStart && index == this.tmpStartIndex && this.tmpEndIndex < index && this.tmpEndIndex ,
+      }
+    }
   },
   watch: {
     min(v) {
@@ -552,9 +611,12 @@ export default /*#__PURE__*/ {
       }
     },
     value(v) {
+      if(v === []){
+        this.clear()
+      }
       const newDate = new Date(v)
       this.date = newDate.getDate()
-
+      this.updateTmpValues(v)
     }
   },
   computed: {
@@ -564,15 +626,10 @@ export default /*#__PURE__*/ {
         this.tmpMonth + 1,
         0
       ).getDate();
-      let dateList = Array.from(
-        { length: currentMonthLength },
-        (val, index) => {
-          return {
-            currentMonth: true,
-            value: index + 1,
-          };
-        }
-      );
+      let dateList = [];
+      for (let index = 0; index < currentMonthLength; index++) { 
+        dateList.push({currentMonth: true, value: index + 1,})
+      }
       let startDay = new Date(this.tmpYear, this.tmpMonth, 1).getDay();
       let previousMongthLength = new Date(
         this.tmpYear,
@@ -616,8 +673,12 @@ export default /*#__PURE__*/ {
         }
       }
 
-      if (this.showFromTo) {
+      if (this.showFromTo === 'both') {
         return this.range ? "From " + dateFrom + " to " + dateTo : this.value;
+      } else if(this.showFromTo == 'from') {
+        return this.range ? dateFrom : this.value;
+      } else if(this.showFromTo == 'to') {
+        return this.range ? dateTo : this.value;
       } else {
         return this.range ? dateFrom + " - " + dateTo : this.value;
       }
@@ -626,35 +687,75 @@ export default /*#__PURE__*/ {
   filters: {
     week: (item, lang) => {
       switch (lang) {
-        case "en":
+        case "ar":
           return {
-            0: "Su",
+            0: "السبت",
+            1: "الأحد",
+            2: "الاثنين",
+            3: "الثلاثاء",
+            4: "الأربعاء",
+            5: "الجمعة",
+            6: "جمعة",
+          }[item];
+        case "bg":
+          return {
+            0: "нд",
+            1: "пн",
+            2: "вт",
+            3: "ср",
+            4: "чт",
+            5: "пт",
+            6: "сб",
+          }[item];
+        case "ca":
+          return {
+            0: "dg",
+            1: "dl",
+            2: "dt",
+            3: "dc",
+            4: "dj",
+            5: "dv",
+            6: "ds",
+          }[item];
+        case "cs":
+          return {
+            0: "Ne",
+            1: "Po",
+            2: "Út",
+            3: "St",
+            4: "Čt",
+            5: "Pá",
+            6: "So",
+          }[item];
+        case "da":
+          return {
+            0: "Søn.",
+            1: "Man.",
+            2: "Tirs.",
+            3: "Ons.",
+            4: "Tors.",
+            5: "Fre.",
+            6: "Lør.",
+          }[item];
+        case "de":
+          return {
+            0: "So",
             1: "Mo",
-            2: "Tu",
-            3: "We",
-            4: "Th",
+            2: "Di",
+            3: "Mi",
+            4: "Do",
             5: "Fr",
             6: "Sa",
           }[item];
-        case "ch":
+        case "el":
           return {
-            0: "日",
-            1: "一",
-            2: "二",
-            3: "三",
-            4: "四",
-            5: "五",
-            6: "六",
-          }[item];
-        case "uk":
-          return {
-            0: "Пн",
-            1: "Вт",
-            2: "Ср",
-            3: "Чт",
-            4: "Пт",
-            5: "Сб",
-            6: "Нд",
+            0: "Κυρ.",
+            1: "Δευ.",
+            2: "Τρ.",
+            3: "Τετ.",
+            4: "Πέμ.",
+            5: "Παρ.",
+            6: "Σάβ.",
           }[item];
         case "es":
           return {
@@ -666,41 +767,754 @@ export default /*#__PURE__*/ {
             5: "Vi",
             6: "Sa",
           }[item];
-        default:
-          return item;
-      }
-    },
-    month: (item, lang) => {
-      switch (lang) {
-        case "en":
+        case "et":
           return {
-            1: "Jan",
-            2: "Feb",
-            3: "Mar",
-            4: "Apr",
-            5: "May",
-            6: "Jun",
-            7: "Jul",
-            8: "Aug",
-            9: "Sep",
-            10: "Oct",
-            11: "Nov",
-            12: "Dec",
+            0: "P",
+            1: "E",
+            2: "T",
+            3: "K",
+            4: "N",
+            5: "R",
+            6: "L",
           }[item];
-        case "ch":
+        case "eu":
           return {
+            0: "ig.",
+            1: "al.",
+            2: "ar.",
+            3: "az.",
+            4: "og.",
+            5: "or.",
+            6: "lr.",
+          }[item];
+        case "fi":
+          return {
+            0: "Su",
+            1: "Ma",
+            2: "Ti",
+            3: "Ke",
+            4: "To",
+            5: "Pe",
+            6: "La",
+          }[item];
+        case "fr":
+          return {
+            0: "Di",
+            1: "Lu",
+            2: "Ma",
+            3: "Me",
+            4: "Je",
+            5: "Ve",
+            6: "Sa",
+          }[item];
+        case "he":
+          return {
+            0: "ראשון",
+            1: "שני",
+            2: "שלישי",
+            3: "רביעי",
+            4: "חמישי",
+            5: "שישי",
+            6: "שבת",
+          }[item];
+        case "hu":
+          return {
+            0: "Vas.",
+            1: "H.",
+            2: "K.",
+            3: "Sze.",
+            4: "Csüt.",
+            5: "P.",
+            6: "Szo.",
+          }[item];
+        case "id":
+          return {
+            0: "Min",
+            1: "Sen",
+            2: "Sel",
+            3: "Rab",
+            4: "Kam",
+            5: "Jum",
+            6: "Sab",
+          }[item];
+        case "it":
+          return {
+            0: "dom.",
+            1: "lun.",
+            2: "mar.",
+            3: "mer.",
+            4: "gio.",
+            5: "ven.",
+            6: "sab.",
+          }[item];
+        case "ja":
+          return {
+            0: "日曜",
+            1: "月曜",
+            2: "火曜",
+            3: "水曜",
+            4: "木曜",
+            5: "金曜",
+            6: "土曜",
+          }[item];
+        case "ko":
+          return {
+            0: "일요일",
+            1: "월요일",
+            2: "화요일",
+            3: "수요일",
+            4: "목요일",
+            5: "금요일",
+            6: "토요일",
+          }[item];
+        case "lv":
+          return {
+            0: "Sv.",
+            1: "P.",
+            2: "O.",
+            3: "T.",
+            4: "C.",
+            5: "Pk.",
+            6: "S.",
+          }[item];
+        case "ms":
+          return {
+            0: "Ahad",
+            1: "isnin",
+            2: "masanya",
+            3: "Rabu",
+            4: "Khamis",
+            5: "Jumaat",
+            6: "Sabtu",
+          }[item];
+        case "nl":
+          return {
+            0: "zon",
+            1: "ma",
+            2: "di",
+            3: "woe",
+            4: "don",
+            5: "vrij",
+            6: "zat",
+          }[item];
+        case "no":
+          return {
+            0: "Sø.",
+            1: "Ma.",
+            2: "Ti.",
+            3: "On.",
+            4: "To.",
+            5: "Fr.",
+            6: "Lø.",
+          }[item];
+        case "pl":
+          return {
+            0: "ndz.",
+            1: "pn.",
+            2: "wt.",
+            3: "śr.",
+            4: "czw.",
+            5: "pt.",
+            6: "sob.",
+          }[item];
+        case "pt":
+          return {
+            0: "Dom",
+            1: "Seg",
+            2: "Ter",
+            3: "Qua",
+            4: "Qui",
+            5: "Sex",
+            6: "Sab",
+          }[item];
+        case "ru":
+          return {
+            0: "ВСК",
+            1: "ПНД",
+            2: "ВТР",
+            3: "СРД",
+            4: "ЧТВ",
+            5: "ПТН",
+            6: "СБТ",
+          }[item];
+        case "sk":
+          return {
+            0: "Sø.",
+            1: "Ma.",
+            2: "Ti.",
+            3: "On.",
+            4: "To.",
+            5: "Fr.",
+            6: "Lø.",
+          }[item];
+        case "sr":
+          return {
+            0: "Нед.",
+            1: "Пон.",
+            2: "Ут.",
+            3: "Ср.",
+            4: "Чет.",
+            5: "Пет.",
+            6: "Суб.",
+          }[item];
+        case "sv":
+          return {
+            0: "Sön",
+            1: "Mån",
+            2: "Tis",
+            3: "Ons",
+            4: "Tors",
+            5: "Fre",
+            6: "Lör",
+          }[item];
+        case "th":
+          return {
+            0: "อา.",
+            1: "จ.",
+            2: "อ.",
+            3: "พ.",
+            4: "พฤ.",
+            5: "ศ.",
+            6: "ส.",
+          }[item];
+        case "tl":
+          return {
+            0: "Lun",
+            1: "Mar",
+            2: "Miy",
+            3: "Huw",
+            4: "Biy",
+            5: "Sab",
+            6: "Lin",
+          }[item];
+        case "tr":
+          return {
+            0: "Paz",
+            1: "Pzt",
+            2: "Sa",
+            3: "Çrs",
+            4: "Prs",
+            5: "Cum",
+            6: "Cmt",
+          }[item];
+        case "uk":
+          return {
+            0: "Пн",
+            1: "Вт",
+            2: "Ср",
+            3: "Чт",
+            4: "Пт",
+            5: "Сб",
+            6: "Нд",
+          }[item];
+        case "vi":
+          return {
+            0: "CN",
+            1: "T2",
+            2: "T3",
+            3: "T4",
+            4: "T5",
+            5: "T6",
+            6: "T7",
+          }[item];
+        case "zh":
+          return {
+            0: "日",
             1: "一",
             2: "二",
             3: "三",
             4: "四",
             5: "五",
             6: "六",
-            7: "七",
-            8: "八",
-            9: "九",
-            10: "十",
-            11: "十一",
-            12: "十二",
+          }[item];
+        case "zh-TW":
+          return {
+            0: "日",
+            1: "一",
+            2: "二",
+            3: "三",
+            4: "四",
+            5: "五",
+            6: "六",
+          }[item];
+        default:
+          return {
+            0: "Su",
+            1: "Mo",
+            2: "Tu",
+            3: "We",
+            4: "Th",
+            5: "Fr",
+            6: "Sa",
+          }[item];
+      }
+    },
+    month: (item, lang) => {
+      switch (lang) {
+        case "ar":
+          return {
+            1: "كانون الثاني",
+            2: "شهر فبراير",
+            3: "مارس",
+            4: "أبريل",
+            5: "قد",
+            6: "يونيو",
+            7: "تموز",
+            8: "أغسطس",
+            9: "شهر تسعة",
+            10: "اكتوبر",
+            11: "شهر نوفمبر",
+            12: "ديسمبر",
+          }[item];
+        case "bg":
+          return {
+            1: "ян.",
+            2: "февр.",
+            3: "март",
+            4: "април",
+            5: "май",
+            6: "юни",
+            7: "юли",
+            8: "авг.",
+            9: "септ.",
+            10: "окт.",
+            11: "ноем.",
+            12: "дек.",
+          }[item];
+        case "ca":
+          return {
+            1: "gen.",
+            2: "febr.",
+            3: "març",
+            4: "abr.",
+            5: "maig",
+            6: "juny",
+            7: "jul.",
+            8: "ag.",
+            9: "set.",
+            10: "oct.",
+            11: "nov.",
+            12: "des.",
+          }[item];
+        case "cs":
+          return {
+            1: "ed.",
+            2: "ún.",
+            3: "břez.",
+            4: "dub.",
+            5: "květ.",
+            6: "červ.",
+            7: "červen.",
+            8: "srp.",
+            9: "září",
+            10: "řij.",
+            11: "list.",
+            12: "pros.",
+          }[item];
+        case "da":
+          return {
+            1: "an.",
+            2: "febr.",
+            3: "marts",
+            4: "april",
+            5: "maj",
+            6: "juni",
+            7: "juli",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "de":
+          return {
+            1: "Jän.",
+            2: "Feb.",
+            3: "März",
+            4: "Apr.",
+            5: "Mai",
+            6: "Juni",
+            7: "Juli",
+            8: "Aug.",
+            9: "Sept.",
+            10: "Okt.",
+            11: "Nov.",
+            12: "Dez.",
+          }[item];
+        case "el":
+          return {
+            1: "Ίαν.",
+            2: "Φεβρ.",
+            3: "Μάρτ",
+            4: "Άπρ.",
+            5: "Μάϊος",
+            6: "Ίούν.",
+            7: "Ίούλ.",
+            8: "Αύγ.",
+            9: "Σεπτ.",
+            10: "Όκτ.",
+            11: "Νοέµ.",
+            12: "Δεκ.",
+          }[item];
+        case "es":
+          return {
+            1: "enero",
+            2: "feb.",
+            3: "marzo",
+            4: "abr.",
+            5: "mayo",
+            6: "jun.",
+            7: "jul.",
+            8: "agosto",
+            9: "sept.",
+            10: "oct.",
+            11: "nov.",
+            12: "dic.",
+          }[item];
+        case "et":
+          return {
+            1: "jaan.",
+            2: "veebr.",
+            3: "märts",
+            4: "apr.",
+            5: "mai",
+            6: "juuni",
+            7: "juuli",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dets.",
+          }[item];
+        case "eu":
+          return {
+            1: "urt.",
+            2: "ots.",
+            3: "mar.",
+            4: "api.",
+            5: "mai.",
+            6: "eka.",
+            7: "uzt.",
+            8: "abu.",
+            9: "ira.",
+            10: "urr.",
+            11: "aza.",
+            12: "abe.",
+          }[item];
+        case "fi":
+          return {
+            1: "tammik.",
+            2: "helmik.",
+            3: "maalisk.",
+            4: "huhtik.",
+            5: "toukok.",
+            6: "kesäk.",
+            7: "heinäk.",
+            8: "elok.",
+            9: "syysk.",
+            10: "lokak.",
+            11: "marrask.",
+            12: "jouluk.",
+          }[item];
+        case "fr":
+          return {
+            1: "janv.",
+            2: "févr.",
+            3: "mars",
+            4: "avril",
+            5: "mai",
+            6: "juin",
+            7: "juil.",
+            8: "août",
+            9: "sept.",
+            10: "oct.",
+            11: "nov.",
+            12: "déc.",
+          }[item];
+        case "he":
+          return {
+            1: "Tishri",
+            2: "Cheshvan",
+            3: "Kislev",
+            4: "Tevet",
+            5: "Shevat",
+            6: "Adar",
+            7: "Nisan",
+            8: "Iyar",
+            9: "Sivan",
+            10: "Tammuz",
+            11: "Av",
+            12: "Elul",
+          }[item];
+        case "hu":
+          return {
+            1: "jan.",
+            2: "feb.",
+            3: "márc.",
+            4: "ápr.",
+            5: "máj",
+            6: "jún.",
+            7: "júl.",
+            8: "aug.",
+            9: "szept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "id":
+          return {
+            1: "Djan.",
+            2: "Peb.",
+            3: "Mrt.",
+            4: "Apr.",
+            5: "Mai",
+            6: "Djuni",
+            7: "Djuli",
+            8: "Ag.",
+            9: "sept.",
+            10: "okt.",
+            11: "Nop.",
+            12: "Des.",
+          }[item];
+        case "it":
+          return {
+            1: "genn.",
+            2: "febbr.",
+            3: "mar.",
+            4: "apr.",
+            5: "magg.",
+            6: "giugno",
+            7: "luglio",
+            8: "ag.",
+            9: "sett.",
+            10: "ott.",
+            11: "nov.",
+            12: "dic.",
+          }[item];
+        case "ja":
+          return {
+            1: "一月",
+            2: "二月",
+            3: "三月",
+            4: "四月",
+            5: "五月",
+            6: "六月",
+            7: "七月",
+            8: "八月",
+            9: "九月",
+            10: "十月",
+            11: "十一月",
+            12: "十二月",
+          }[item];
+        case "ko":
+          return {
+            1: "일월",
+            2: "이월",
+            3: "삼월",
+            4: "사월",
+            5: "오월",
+            6: "유월",
+            7: "칠월",
+            8: "팔월",
+            9: "구월",
+            10: "시월",
+            11: "십일월",
+            12: "십이월",
+          }[item];
+        case "lv":
+          return {
+            1: "jan.",
+            2: "feb.",
+            3: "marts",
+            4: "apr.",
+            5: "maijs",
+            6: "junijs",
+            7: "julijs",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "ms":
+          return {
+            1: "Jan.",
+            2: "Feb.",
+            3: "Mac",
+            4: "Apr.",
+            5: "Mei",
+            6: "Jun",
+            7: "Julai",
+            8: "Og.",
+            9: "Sept.",
+            10: "Okt.",
+            11: "Nov.",
+            12: "Dis.",
+          }[item];
+        case "nl":
+          return {
+            1: "jan.",
+            2: "feb.",
+            3: "maart",
+            4: "apr.",
+            5: "mei",
+            6: "juni",
+            7: "juli",
+            8: "aug.",
+            9: "sept.",
+            10: "oct.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "no":
+          return {
+            1: "jan.",
+            2: "febr.",
+            3: "mars",
+            4: "april",
+            5: "mai",
+            6: "juni",
+            7: "juli",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "des.",
+          }[item];
+        case "pl":
+          return {
+            1: "stycz.",
+            2: "luty",
+            3: "mar.",
+            4: "kwiec.",
+            5: "maj",
+            6: "czerw.",
+            7: "lip.",
+            8: "sierp.",
+            9: "wrzes.",
+            10: "paźdz.",
+            11: "listop.",
+            12: "grudz.",
+          }[item];
+        case "pt":
+          return {
+            1: "Jan",
+            2: "Fev",
+            3: "Mar",
+            4: "Abr",
+            5: "Mai",
+            6: "Jun",
+            7: "Jul",
+            8: "Ago",
+            9: "Set",
+            10: "Out",
+            11: "Nov",
+            12: "Dez",
+          }[item];
+        case "ru":
+          return {
+            1: "янв.",
+            2: "февр.",
+            3: "март",
+            4: "апр.",
+            5: "май",
+            6: "июнь",
+            7: "июль",
+            8: "авг.",
+            9: "сент.",
+            10: "окт.",
+            11: "ноябрь",
+            12: "дек.",
+          }[item];
+        case "sk":
+          return {
+            1: "l'ad.",
+            2: "ún.",
+            3: "brez.",
+            4: "dub.",
+            5: "kvet.",
+            6: "červ.",
+            7: "červen.",
+            8: "srp.",
+            9: "zári.",
+            10: "ruj.",
+            11: "list.",
+            12: "pros.",
+          }[item];
+        case "sr":
+          return {
+            1: "jan.",
+            2: "febr.",
+            3: "mart",
+            4: "april",
+            5: "maj",
+            6: "juni",
+            7: "juli",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "sv":
+          return {
+            1: "jan.",
+            2: "febr.",
+            3: "mars",
+            4: "april",
+            5: "maj",
+            6: "juni",
+            7: "juli",
+            8: "aug.",
+            9: "sept.",
+            10: "okt.",
+            11: "nov.",
+            12: "dec.",
+          }[item];
+        case "th":
+          return {
+            1: "มกราคม",
+            2: "กุมภาพันธ์",
+            3: "มีนาคม",
+            4: "เมษายน",
+            5: "พฤษภาคม",
+            6: "มิถุนายน",
+            7: "กรกฎาคม",
+            8: "สิงหาคม",
+            9: "กันยายน",
+            10: "ตุลาคม",
+            11: "พฤศจิกายน",
+            12: "ธันวาคม",
+          }[item];
+        case "tl":
+          return {
+            1: "Ene",
+            2: "Peb",
+            3: "Mar",
+            4: "Abr",
+            5: "May",
+            6: "Hun",
+            7: "Hul",
+            8: "Ago",
+            9: "Set",
+            10: "Okt",
+            11: "Nob",
+            12: "Dis",
+          }[item];
+        case "tr":
+          return {
+            1: "ocak",
+            2: "şubat",
+            3: "mart",
+            4: "nisan",
+            5: "mayıs",
+            6: "haziran",
+            7: "temmuz",
+            8: "ağustos",
+            9: "eylül",
+            10: "ekim",
+            11: "kasım",
+            12: "aralık",
           }[item];
         case "uk":
           return {
@@ -717,23 +1531,67 @@ export default /*#__PURE__*/ {
             11: "Листопад",
             12: "Грудень",
           }[item];
-        case "en":
+        case "vi":
           return {
-            1: "Ene",
+            1: "Một",
+            2: "Hai",
+            3: "Ba",
+            4: "Tư",
+            5: "Năm",
+            6: "Sáu",
+            7: "Bảy",
+            8: "Tám",
+            9: "Chín",
+            10: "Mười",
+            11: "Mười Một",
+            12: "Mười Hai",
+          }[item];
+        case "zh":
+          return {
+            1: "一",
+            2: "二",
+            3: "三",
+            4: "四",
+            5: "五",
+            6: "六",
+            7: "七",
+            8: "八",
+            9: "九",
+            10: "十",
+            11: "十一",
+            12: "十二",
+          }[item];
+        case "zh-TW":
+          return {
+            1: "一",
+            2: "二",
+            3: "三",
+            4: "四",
+            5: "五",
+            6: "六",
+            7: "七",
+            8: "八",
+            9: "九",
+            10: "十",
+            11: "十一",
+            12: "十二",
+          }[item];
+        default:
+          // defaults to english
+          return {
+            1: "Jan",
             2: "Feb",
             3: "Mar",
-            4: "Abr",
+            4: "Apr",
             5: "May",
             6: "Jun",
             7: "Jul",
-            8: "Ago",
+            8: "Aug",
             9: "Sep",
             10: "Oct",
             11: "Nov",
-            12: "Dic",
+            12: "Dec",
           }[item];
-        default:
-          return item;
       }
     },
   },
@@ -959,22 +1817,13 @@ ul {
   transform: scale(1) !important;
   opacity: 1 !important;
 }
-.date-list li.interval .bg {
-  /* background: var(--header-color);
-  opacity: 0.8 !important;
-  transform: scale(1) !important;
-  color: #fff; */
-}
 .date-list li.interval {
   background: var(--header-color);
-  opacity: 0.8;
+  opacity: 0.7;
   color: #fff;
 }
 .date-list li.start, .date-list li.end {
   color: #FFF;
-}
-.date-list li:not(.firstItem) {
-  /* margin-left: 10px; */
 }
 .date-list li .message {
   font-family: Roboto, sans-serif;
