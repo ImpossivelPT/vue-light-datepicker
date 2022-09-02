@@ -385,9 +385,6 @@ export default /*#__PURE__*/ {
       this.panelType = "date";
     },
     selectDate(date, index) {
-      console.log('selectDate', date, index)
-      
-
       setTimeout(() => {
         if (this.validateDate(date)) return;
         if (date.previousMonth) {
@@ -429,11 +426,8 @@ export default /*#__PURE__*/ {
           this.rangeStart = true;
         } else if (this.range && this.rangeStart) {
           if(this.allowSelectSameDay == false && date.value === this.tmpStartDate && this.tmpMonth === this.tmpStartMonth) {
-            console.log('Selecting the same day is not allowed!');
             return false;
           }
-          // console.log(this.tmpD, this.tmpStartDate, this.tmpMonth, this.tmpStartMonth, date.value)
-          // debugger
           this.tmpEndYear = this.tmpYear;
           this.tmpEndMonth = this.tmpMonth;
           this.tmpEndDate = date.value;
@@ -477,12 +471,6 @@ export default /*#__PURE__*/ {
           this.rangeStart = false;
           this.panelState = false;
         }
-
-        // Allow or not select same day on rage
-        // if(this.range === true && this.rangeStart === true && this.allowSelectSameDay === true && this.tmpStartDate === this.tmpEndDate && this.tmpStartMonth === this.tmpEndMonth) {
-        //   console.log('You are selecting the same date')
-        // }
-        // debugger
       }, 0);
     },
     overDate(date, index){
