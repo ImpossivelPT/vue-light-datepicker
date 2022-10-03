@@ -553,20 +553,61 @@ export default /*#__PURE__*/ {
       }
     },
     dateDayItemClasse(item, index) {
+
+      let isInterval = false;
+      let isStart = false;
+      let isEnd = false;
+
+      // Range started
+      if(this.rangeStart && this.tmpEndIndex) {
+        // Same Year
+        if(this.tmpStartYear == this.tmpYear) {
+
+          // Same year and same month
+          if(this.tmpMonth == this.tmpStartMonth){
+            isInterval = index > this.tmpStartIndex && index < this.tmpEndIndex || index < this.tmpStartIndex && index > this.tmpEndIndex;
+            isStart = index == this.tmpStartIndex && this.tmpEndIndex > index  && this.tmpEndIndex || index == this.tmpEndIndex && this.tmpStartIndex > index && this.tmpEndIndex;
+            isEnd =   index == this.tmpEndIndex && this.tmpStartIndex < index  && this.tmpEndIndex || index == this.tmpStartIndex && this.tmpEndIndex < index && this.tmpEndIndex;
+          } 
+          // Month Ahead
+          else if (this.tmpMonth > this.tmpStartMonth) {
+            isInterval = index <= this.tmpEndIndex - 1;
+            isStart = false;
+            isEnd = index == this.tmpEndIndex;
+          }
+          // Month Back
+          else if (this.tmpMonth < this.tmpStartMonth) {
+            isInterval = index >= this.tmpEndIndex + 1;
+            isStart = index == this.tmpEndIndex;
+            isEnd = false;
+          }
+
+        }
+        // year back
+        else if (this.tmpStartYear > this.tmpYear) {
+          isInterval = this.tmpYear && index >= this.tmpEndIndex + 1;
+          isStart = index == this.tmpEndIndex;
+          isEnd = false;
+        }
+        // year ahead
+        else {
+          isInterval = index <= this.tmpEndIndex - 1;
+          isStart = false;
+          isEnd = index == this.tmpEndIndex;
+        }
+      }
+
       return {
         preMonth: item.previousMonth,
         nextMonth: item.nextMonth,
         invalid: this.validateDate(item),
         firstItem: index % 7 === 0,
-        interval: this.rangeStart && index > this.tmpStartIndex && index < this.tmpEndIndex && this.tmpEndIndex || 
-          this.rangeStart && index < this.tmpStartIndex && index > this.tmpEndIndex && this.tmpEndIndex || 
-          this.range && this.isSelected('date', item),
-        start: this.rangeStart && index == this.tmpStartIndex && this.tmpEndIndex > index  && this.tmpEndIndex || 
-          this.range && !this.rangeStart && this.isFirstDaySelected(item) ||
-          this.rangeStart && index == this.tmpEndIndex && this.tmpStartIndex > index && this.tmpEndIndex ,
-        end: this.rangeStart && index == this.tmpEndIndex && this.tmpStartIndex < index  && this.tmpEndIndex || 
-          this.range && !this.rangeStart && this.isLastDaySelected(item) ||
-          this.rangeStart && index == this.tmpStartIndex && this.tmpEndIndex < index && this.tmpEndIndex ,
+        interval: 
+          this.range && this.isSelected('date', item) || isInterval,
+        start:
+          this.range && !this.rangeStart && this.isFirstDaySelected(item) || isStart,
+        end:
+          this.range && !this.rangeStart && this.isLastDaySelected(item) || isEnd,
       }
     }
   },
