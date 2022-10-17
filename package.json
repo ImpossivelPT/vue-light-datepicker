@@ -1,7 +1,7 @@
 {
   "name": "vue-light-datepicker",
   "author": "Fábio Garcua <fabioaggarcia@gmail.com>",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "description": "Lightweight date picker with range selection",
   "main": "dist/vue-light-datepicker.ssr.js",
   "browser": "dist/vue-light-datepicker.esm.js",

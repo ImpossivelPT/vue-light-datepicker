@@ -301,8 +301,6 @@ export default /*#__PURE__*/ {
       this.rangeStart = false;
     },
     setUpdateCalendarOnDate() {
-      console.log('setUpdateCalendarOnDate')
-      debugger
       let now = new Date();
       this.tmpMonth = typeof this.tmpStartMonth === "number" && !isNaN(this.tmpStartMonth) ? this.tmpStartMonth :  now.getMonth();
       this.tmpYear = typeof this.tmpStartYear === "number" && !isNaN(this.tmpStartYear) ? this.tmpStartYear :  now.getFullYear();
