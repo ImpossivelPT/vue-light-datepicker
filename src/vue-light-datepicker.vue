@@ -290,8 +290,22 @@ export default /*#__PURE__*/ {
       if (this.disabled) {
         return false;
       }
+
+      if(this.panelState === false) {
+        // Is opening panel
+        this.setUpdateCalendarOnDate()
+      } else {
+        // Is closing panel
+      }
       this.panelState = !this.panelState;
       this.rangeStart = false;
+    },
+    setUpdateCalendarOnDate() {
+      console.log('setUpdateCalendarOnDate')
+      debugger
+      let now = new Date();
+      this.tmpMonth = typeof this.tmpStartMonth === "number" && !isNaN(this.tmpStartMonth) ? this.tmpStartMonth :  now.getMonth();
+      this.tmpYear = typeof this.tmpStartYear === "number" && !isNaN(this.tmpStartYear) ? this.tmpStartYear :  now.getFullYear();
     },
     isSelected(type, item) {
       switch (type) {
